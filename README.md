@@ -39,6 +39,6 @@ Where "my-app-name" is the name of your Heroku app.
 
 Then create a scheduled job (with Heroku Scheduler) similar to the following
 
-	lein trampoline -r task-master.watch-database-compressor
-	lein trampoline -r task-master.watch-graphing-rendering
+	lein trampoline -r task-master/watch-database-compressor
+	lein trampoline -r task-master/watch-graphing-rendering
 
