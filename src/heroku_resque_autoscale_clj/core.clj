@@ -6,22 +6,22 @@
 (def heroku-api-url "https://api.heroku.com/apps/")
 (def ^:dynamic *queue-prefix* "resque:queue:")
 
-(defn server-map
+(def server-map
   {:host (System/getenv "REDIS_HOST")
-   :port (System/getenv "REDIS_PORT")
+   :port (Integer/parseInt (System/getenv "REDIS_PORT"))
    :password (System/getenv "REDIS_PASSWORD")})
 
-(defn scale-process [app type qty]
+(defn- scale-process [app type qty]
   (let [post-map {:basic-auth ["",*heroku-api-key*]
                   :accept :json
                   :body (str "{ \"type:\"" type "\"qty:\"" qty "}")}]
-    (client/post heroku-api-url post-map)))
+    (http-client/post heroku-api-url post-map)))
 
-(defn count-jobs-in-queue [queue]
+(defn- count-jobs-in-queue [queue]
   (redis/with-server server-map
     (redis/llen (str *queue-prefix* queue))))
 
-(defn identify-scale-level [scale-levels jobs-in-queue]
+(defn- identify-scale-level [scale-levels jobs-in-queue]
   (let [capped-scale-levels (conj (cons 0 scale-levels) 0)
         level (filter (fn [[l r]] (and (>= jobs-in-queue l)
                                      (< jobs-in-queue r)))
@@ -29,8 +29,9 @@
     (first (first level))))
 
 (defn watch [app queue-map]
-  (let [process-name (:process queue-map)
-        jobs-in-queue (count-jobs-in-queue queue)]
+  (let [queue-name (:name queue-map)
+        process-name (:process queue-map)
+        jobs-in-queue (count-jobs-in-queue queue-name)]
     (if-let [scale-fn (:scale-fn queue-map)]
       (scale-process app process-name (scale-fn jobs-in-queue))
       (let [scale-level-keys (vec (sort (keys (:scale-levels queue-map))))
